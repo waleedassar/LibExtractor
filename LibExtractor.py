@@ -4,16 +4,32 @@ import os,sys,time,datetime,struct
 def StrReverse(Str):
     return Str[::-1]
 
-def GetNextString(Str,Offset):
+def GetNextString(Str,Offset,Length):
     if Str == "":
         return ""
     NewStr = ""
     i = Offset
-    while Str[i] != "\x00":
+    while i < Length and Str[i] != "\x00":
         NewStr += Str[i]
         i = i + 1
     return NewStr
-    
+
+
+def GetNumberOfUniqueElements(ListX):
+    NewList = []
+    LenListX = len(ListX)
+    for i in range(0,LenListX):
+        E = ListX[i]
+        Found = False
+        for ii in range(0,len(NewList)):
+            EE = NewList[ii]
+            if EE == E:
+                Found = True
+                break
+        if Found == False:
+            NewList.append(E)
+    return len(NewList)
+
 NumArgs = len(sys.argv)
 if NumArgs != 2:
     print "Usage: LibExtractor.py input.lib"
@@ -133,6 +149,8 @@ while c < Num:
     fOut.close()
     c = c + 1
 
+
+#----------------------------------------------------------------------------
 print "Now reading first Linker Member"
 
 NumLinkerMembers = len(LinkerMembers)
@@ -147,29 +165,77 @@ if NumLinkerMembers >= 1:
         print "First Linker Member is empty"
     else:
         lenMem = len(cLinkMem)
-        if lenMem < 4:
+        ToBeReadSize = 4
+        if ToBeReadSize >= lenMem:
             print "First Linker Member is too small"
         else:
-            s_NumSymbols = (cLinkMem[0:4])[::-1]
+            Runner = 0
+            s_NumSymbols = (cLinkMem[Runner:Runner+4])[::-1]
+            Runner += 4
             NumSymbols = struct.unpack("L",s_NumSymbols)[0]
             print "Number of Symbols: " + str(NumSymbols)
-            sz_of_offsets = NumSymbols * 4
-            offStrings = 4 + sz_of_offsets
-            if 4 + (sz_of_offsets) >= lenMem:
+            SzSymbols = (NumSymbols * 4)
+            ToBeReadSize += SzSymbols
+            if ToBeReadSize >= lenMem:
                 print "Boundary error while reading first Linker Member"
             else:
-                Offsets = cLinkMem[4:4+sz_of_offsets]
+                Offsets = cLinkMem[Runner:Runner+SzSymbols]
+                Runner += SzSymbols
                 cOffset = 0
-                while cOffset < sz_of_offsets:
+                while cOffset < SzSymbols:
                     sOffX = (Offsets[cOffset:cOffset+4])[::-1]
                     OffX = struct.unpack("L",sOffX)[0]
                     Offsets_First.append(OffX)
-                    print hex(OffX)
-                    StrX = GetNextString(cLinkMem,offStrings)
-                    print StrX
-                    offStrings += (len(StrX)+1)
+                    OStr = ""
+                    OStr += str(hex(OffX))
+                    OStr += ": "
+                    StrX = GetNextString(cLinkMem,Runner,lenMem)
+                    OStr += StrX
+                    #print OStr
+                    Strings_First.append(StrX)
+                    Runner += (len(StrX)+1)
                     cOffset += 4
-            
+
+NumOffsets = len(Offsets_First)
+NumStrings = len(Strings_First)
+NumUniqueOffsets = GetNumberOfUniqueElements(Offsets_First)
+
+NewOffsets_First = []
+NewStrings_First = []
+
+if NumOffsets == NumStrings:
+    c = 0
+    while c < NumOffsets:
+        cOffsetXX = Offsets_First[c]
+        Found = False
+        for cc in range(0,len(NewOffsets_First)):
+            cOffsetYY = NewOffsets_First[cc]
+            if cOffsetYY == cOffsetXX:
+                Found = True
+                break
+        if Found == False:
+            NewOffsets_First.append(cOffsetXX)
+            AllMemSymbols = ""
+            for ccc in range(0,NumOffsets):
+                xxOffxx = Offsets_First[ccc]
+                if xxOffxx == cOffsetXX:
+                    AllMemSymbols += Strings_First[ccc]
+                    AllMemSymbols += "\x09"  #I will use Tab as String separator
+            NewStrings_First.append(AllMemSymbols)
+        c = c + 1
+
+if NumUniqueOffsets != len(NewStrings_First):
+    print "Error reading first member symbols"
+else:
+    for c in range(0,NumUniqueOffsets):
+        Offset = NewOffsets_First[c]
+        print str(hex(Offset)) + " ===> "
+        AllSymbols = NewStrings_First[c]
+        Symbols = AllSymbols.split("\x09")
+        for Symbol in Symbols:
+            if Symbol != "":
+                print Symbol
+#-------------------------------------------------------------------------
 #Optional
 #Parse second Linker Member 
 #Second Linker Member represents a map of full .Lib File
@@ -177,7 +243,8 @@ if NumLinkerMembers >= 1:
 
 print "Now parsing second Linker Member....."
 
-OffMemberHeaders = []
+MemberOffsets = []
+Indices = []
 Symbols = []
 if NumLinkerMembers >= 2:
     cLinkMem_ = Members[LinkerMembers[1]]
@@ -201,7 +268,7 @@ if NumLinkerMembers >= 2:
             else:
                 c = 0
                 while c < NumMembers_:
-                    OffMemberHeaders.append(struct.unpack("L",cLinkMem_[Runner:Runner+4])[0])
+                    MemberOffsets.append(struct.unpack("L",cLinkMem_[Runner:Runner+4])[0])
                     Runner += 4
                     c = c + 1
                 ToBeReadSize += 4
@@ -215,15 +282,53 @@ if NumLinkerMembers >= 2:
                     if ToBeReadSize >= lenMem_:
                         print "Boundary error while reading second Linker Member"
                     else:
-                        Indices = cLinkMem_[Runner:Runner+(NumberOfSymbols_*2)]
+                        IndicesX = cLinkMem_[Runner:Runner+(NumberOfSymbols_*2)]
+                        for u in range(0,NumberOfSymbols_):
+                            Indices.append(struct.unpack("H",IndicesX[u*2:u*2+2])[0])
                         Runner += (NumberOfSymbols_*2)
                         c = 0
                         while c < NumberOfSymbols_:
-                            StrX = GetNextString(cLinkMem_,Runner)
-                            print StrX
+                            StrX = GetNextString(cLinkMem_,Runner,lenMem_)
+                            #print StrX
                             Symbols.append(StrX)
                             Runner += (len(StrX)+1)
                             c = c + 1
+
+NumMemberOffsets = len(MemberOffsets)
+NumIndices = len(Indices)
+NumSymbols = len(Symbols)
+
+if NumSymbols != NumIndices:
+    print "Error reading second member symbols"
+
+
+NewOffsets_Second = []
+NewStrings_Second = []
+
+
+for i in range(0,NumMemberOffsets):
+    cOffset = MemberOffsets[i]
+    NewOffsets_Second.append(cOffset)
+    ii = i + 1
+    AllSymbols = ""
+    for iii in range(0,NumIndices):
+        Index = Indices[iii]
+        if Index == ii:
+            AllSymbols += Symbols[iii]
+            AllSymbols += "\x09"
+
+    NewStrings_Second.append(AllSymbols)
+    
+
+NumUniqueOffsets = len(NewOffsets_Second)
+for i in range(0,NumUniqueOffsets):
+    print str(hex(NewOffsets_Second[i])) + " ===> "
+    AllSymbols = NewStrings_Second[i]
+    Symbols = AllSymbols.split("\x09")
+    for Symbol in Symbols:
+        if Symbol != "":
+            print Symbol
+
 
 #Parse LongNames Member
 if len(LongNamesMembers)>=1:
