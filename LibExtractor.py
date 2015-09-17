@@ -139,7 +139,10 @@ while c < Num:
     outFileName = filename +"_"+str(c)
     cMem = Members[c]
     Machine = cMem[0:2]
+    Extra = cMem[2:4]
     if Machine == "\x4C\x01" or Machine == "\x64\x86":
+        outFileName += ".obj"
+    elif Machine == "\x00\x00" and Extra == "\xFF\xFF": #Import Library
         outFileName += ".obj"
     else:
         outFileName += ".bin"
