@@ -331,11 +331,12 @@ for i in range(0,NumUniqueOffsets):
 
 
 #Parse LongNames Member
+print "Now printing all names in LongNames member"
 if len(LongNamesMembers)>=1:
     lngMem = Members[LongNamesMembers[0]]
     len_lngMem = len(lngMem)
     Runner = 0
     while Runner < len_lngMem:
-        StrX = GetNextString(lngMem,Runner)
+        StrX = GetNextString(lngMem,Runner,len_lngMem)
         print StrX
         Runner += (len(StrX)+1)
