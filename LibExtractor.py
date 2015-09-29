@@ -355,8 +355,8 @@ while c < Num:
     if len_cMem > 0x14:
         Sig1 = cMem[0:2] #\x00\x00 ==> IMAGE_FILE_MACHINE_UNKNOWN
         Sig2 = cMem[2:4] #must be \xff\xff
-        Version = cMem[4:6]
-    if Sig1 == "\x00\x00" and Sig2 == "\xFF\xFF" and Version == "\x00\x00":
+        Version = struct.unpack("H",cMem[4:6])[0]
+    if Sig1 == "\x00\x00" and Sig2 == "\xFF\xFF":
         Machine = cMem[6:8]
         if Machine == "\x4C\x01" or Machine == "\x64\x86":
             print "Import: " + str(i)
