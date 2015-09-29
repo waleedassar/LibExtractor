@@ -343,3 +343,59 @@ if len(LongNamesMembers)>=1:
         StrX = GetNextString(lngMem,Runner,len_lngMem)
         print StrX
         Runner += (len(StrX)+1)
+
+#---------------------------------------
+#Start detecting and parsing import library entries
+print "Now printing IMPORT members (Exports)"
+i = 0
+c = 0
+while c < Num:
+    cMem = Members[c]
+    len_cMem = len(cMem)
+    if len_cMem > 0x14:
+        Sig1 = cMem[0:2] #\x00\x00 ==> IMAGE_FILE_MACHINE_UNKNOWN
+        Sig2 = cMem[2:4] #must be \xff\xff
+        Version = cMem[4:6]
+    if Sig1 == "\x00\x00" and Sig2 == "\xFF\xFF" and Version == "\x00\x00":
+        Machine = cMem[6:8]
+        if Machine == "\x4C\x01" or Machine == "\x64\x86":
+            print "Import: " + str(i)
+            i += 1
+            Timedatestamp = struct.unpack("L",cMem[8:0xC])[0]
+            datetime.datetime.fromtimestamp(Timedatestamp)
+            SizeOfData = struct.unpack("L",cMem[0xC:0x10])[0]
+            Ordinal_Hint = struct.unpack("H",cMem[0x10:0x12])[0]
+            Type_NameType = struct.unpack("H",cMem[0x12:0x14])[0]
+            Type = Type_NameType & 0x3
+            NameType = (Type_NameType & 0x1C)>>2
+            sType = ""
+            if Type == 0:
+                sType = "CODE"
+            elif Type == 1:
+                sType = "DATA"
+            elif Type == 2:
+                sType = "CONST"
+            
+            if 0x14 + SizeOfData <= len_cMem:
+                DataX = cMem[0x14:]
+                runner = 0
+                P = ""
+                Func = GetNextString(DataX,runner,len(DataX))
+                runner += (len(Func)+1)
+                Lib = GetNextString(DataX,runner,len(DataX))
+                P+= Lib
+                P+= "!"
+                P+= Func
+                P += " "
+                if sType != "":
+                    P += ("( " + sType + " )")
+                if NameType & 0x1:
+                    P +=  (" Ordinal: " + str(Ordinal_Hint))
+                else:
+                    P += (" Hint: " + str(Ordinal_Hint))
+                print P
+            else:
+                print "Error while reading import library No. " + str(c)
+        else:
+            print "Warning: Import library has unsupported architecture"
+    c = c + 1
