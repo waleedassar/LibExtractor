@@ -30,6 +30,29 @@ def GetNumberOfUniqueElements(ListX):
             NewList.append(E)
     return len(NewList)
 
+#Removes Prefix _, @, or ?
+def RemovePrefix(Str):
+    if len(Str) >= 1 and (Str[0]=="_" or Str[0]=="@" or Str[0]=="?"):
+        return Str[1:]
+    return Str
+
+#Removes Name Decoration
+def RemoveDecoration(Str):
+    NewStr = ""
+    if len(Str) >= 1 and (Str[0]=="_" or Str[0]=="@" or Str[0]=="?"):
+        NewStr = Str[1:]
+    NewStrX = NewStr.split("@")
+    lenNewStrX = len(NewStrX)
+    if lenNewStrX > 1:
+        NewStr = ""
+        for i in range(0,lenNewStrX-1):
+            NewStr += NewStrX[i]
+            NewStr += "@"
+        if NewStr[-1]=="@":
+            LenNewStr = len(NewStr)
+            NewStr = NewStr[0:LenNewStr-1]
+    return NewStr
+
 NumArgs = len(sys.argv)
 if NumArgs != 2:
     print "Usage: LibExtractor.py input.lib"
@@ -389,10 +412,23 @@ while c < Num:
                 P += " "
                 if sType != "":
                     P += ("( " + sType + " )")
-                if NameType & 0x1:
+                if NameType == 0x0:
                     P +=  (" Ordinal: " + str(Ordinal_Hint))
                 else:
                     P += (" Hint: " + str(Ordinal_Hint))
+                    
+                if NameType == 1:    #IMPORT_NAME
+                    P += " (Export: "
+                    P += Func
+                    P += ")"
+                elif NameType == 2: #IMPORT_NAME_NOPREFIX
+                    P += " (Export: "
+                    P += RemovePrefix(Func)
+                    P += ")"
+                elif NameType == 3: #IMPORT_NAME_UNDECORATE
+                    P += " (Export: "
+                    P += RemoveDecoration(Func)
+                    P += ")"
                 print P
             else:
                 print "Error while reading import library No. " + str(c)
